@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use knapsack::knapsack::dp::DpSolver;
+use knapsack::knapsack::{bkt::BktSolver, dp::DpSolver};
 use knapsack::knapsack::{KnapsackInput, KnapsackItem, KnapsackSolver};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -70,7 +70,7 @@ fn main() {
 
     let solution = match args.cmd {
         KnapsackMethodCmd::Dp => DpSolver::solve(&input),
-        KnapsackMethodCmd::Bkt => unimplemented!(),
+        KnapsackMethodCmd::Bkt => BktSolver::solve(&input),
         KnapsackMethodCmd::Fptas { granularity } => unimplemented!(),
     };
 

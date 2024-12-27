@@ -26,6 +26,7 @@ impl KnapsackItem {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct KnapsackSolution {
     // index of items selected
     pub items: Vec<usize>,
