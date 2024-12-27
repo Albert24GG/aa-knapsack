@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
-use knapsack::knapsack::{bkt::BktSolver, dp::DpSolver};
-use knapsack::knapsack::{KnapsackInput, KnapsackItem, KnapsackSolver};
+use knapsack::{BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackItem, KnapsackSolver};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -66,12 +65,15 @@ fn parse_input(args: &CommandArgs) -> KnapsackInput {
 fn main() {
     let args = CommandArgs::parse();
 
-    let input = parse_input(&args);
+    let mut input = parse_input(&args);
 
     let solution = match args.cmd {
         KnapsackMethodCmd::Dp => DpSolver::solve(&input),
         KnapsackMethodCmd::Bkt => BktSolver::solve(&input),
-        KnapsackMethodCmd::Fptas { granularity } => unimplemented!(),
+        KnapsackMethodCmd::Fptas { granularity } => {
+            input.set_granularity(granularity).unwrap();
+            FptasDpSolver::solve(&input)
+        }
     };
 
     println!("Optimal value: {}", solution.total_value);

@@ -1,5 +1,6 @@
 pub mod bkt;
 pub mod dp;
+pub mod fptas;
 
 use thiserror::Error;
 
