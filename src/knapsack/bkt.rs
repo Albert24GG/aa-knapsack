@@ -21,8 +21,9 @@ impl BktSolver {
         loop {
             if current_item < n {
                 let item = &input.items[current_item];
+                // Explore the possibility of including the current item
                 if current_weight + item.weight <= input.capacity {
-                    stack.push((current_item, current_weight, current_value));
+                    stack.push((current_item, current_weight, current_value, true));
                     current_solution.items.push(current_item);
                     current_solution.total_value += u64::from(item.value);
                     current_weight += item.weight;
@@ -30,18 +31,24 @@ impl BktSolver {
                     current_item += 1;
                     continue;
                 }
+                // Explore the possibility of not including the current item
+                stack.push((current_item, current_weight, current_value, false));
+                current_item += 1;
+                continue;
             }
 
             if current_solution.total_value > best_solution.total_value {
                 best_solution = current_solution.clone();
             }
 
-            if let Some((item, weight, value)) = stack.pop() {
+            if let Some((item, weight, value, included)) = stack.pop() {
+                if included {
+                    current_solution.items.pop();
+                    current_solution.total_value -= u64::from(input.items[item].value);
+                }
                 current_item = item + 1;
                 current_weight = weight;
                 current_value = value;
-                current_solution.items.pop();
-                current_solution.total_value -= u64::from(input.items[item].value);
             } else {
                 break;
             }
