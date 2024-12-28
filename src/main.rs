@@ -76,9 +76,9 @@ fn main() {
         }
     };
 
-    println!("Optimal value: {}", solution.total_value);
+    println!("{}", solution.total_value);
     println!(
-        "Selected items: {}",
+        "{}",
         solution
             .items
             .iter()
