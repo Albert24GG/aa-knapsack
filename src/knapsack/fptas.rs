@@ -24,13 +24,14 @@ impl FptasDpSolver {
         scaled_solution: KnapsackSolution,
         input: &KnapsackInput,
     ) -> KnapsackSolution {
-        let max_value = input.items.iter().map(|item| item.value).max().unwrap();
-        let scale =
-            f64::from(max_value) / (f64::from(input.granularity) * (input.items.len() as f64));
-        let total_value = scaled_solution.total_value as f64 * scale;
+        let total_value = scaled_solution
+            .items
+            .iter()
+            .map(|&item_index| input.items[item_index].value as u64)
+            .sum::<u64>();
         KnapsackSolution {
             items: scaled_solution.items,
-            total_value: total_value.floor() as u64,
+            total_value,
         }
     }
 }
