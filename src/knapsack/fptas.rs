@@ -1,5 +1,5 @@
 use super::dp::DpSolver;
-use super::{KnapsackInput, KnapsackItem, KnapsackSolution, KnapsackSolver};
+use super::{KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolution, KnapsackSolver};
 
 pub struct FptasDpSolver;
 
@@ -36,13 +36,17 @@ impl FptasDpSolver {
 }
 
 impl KnapsackSolver for FptasDpSolver {
-    fn solve(input: &KnapsackInput) -> KnapsackSolution {
+    fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         let scaled_items = FptasDpSolver::scale_items(input);
         let scaled_input =
             KnapsackInput::new(scaled_items, input.capacity, Some(input.granularity)).unwrap();
 
-        let scaled_solution = DpSolver::solve(&scaled_input);
+        let scaled_solution = DpSolver.solve(&scaled_input);
 
         FptasDpSolver::get_actual_solution(scaled_solution, input)
+    }
+
+    fn method(&self) -> KnapsackMethod {
+        KnapsackMethod::Fptas
     }
 }

@@ -1,4 +1,4 @@
-use super::{KnapsackInput, KnapsackSolution, KnapsackSolver};
+use super::{KnapsackInput, KnapsackMethod, KnapsackSolution, KnapsackSolver};
 
 pub struct DpSolver;
 
@@ -64,7 +64,7 @@ impl DpSolver {
 }
 
 impl KnapsackSolver for DpSolver {
-    fn solve(input: &KnapsackInput) -> KnapsackSolution {
+    fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         let dp_table = DpSolver::gen_table(input);
 
         let max_profit = (0..dp_table[0].len() as u64)
@@ -80,5 +80,9 @@ impl KnapsackSolver for DpSolver {
             items: selected_items,
             total_value: max_profit,
         }
+    }
+
+    fn method(&self) -> KnapsackMethod {
+        KnapsackMethod::Dp
     }
 }

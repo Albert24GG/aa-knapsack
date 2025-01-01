@@ -1,4 +1,4 @@
-use super::{KnapsackInput, KnapsackSolution, KnapsackSolver};
+use super::{KnapsackInput, KnapsackMethod, KnapsackSolution, KnapsackSolver};
 
 pub struct BktSolver;
 
@@ -59,7 +59,11 @@ impl BktSolver {
 }
 
 impl KnapsackSolver for BktSolver {
-    fn solve(input: &KnapsackInput) -> KnapsackSolution {
+    fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         BktSolver::bkt_non_recursive(input)
+    }
+
+    fn method(&self) -> super::KnapsackMethod {
+        KnapsackMethod::Bkt
     }
 }

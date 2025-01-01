@@ -2,10 +2,14 @@ pub mod bkt;
 pub mod dp;
 pub mod fptas;
 
+use serde::Serialize;
+use strum_macros::{AsRefStr, IntoStaticStr};
 use thiserror::Error;
 
-pub trait KnapsackSolver {
-    fn solve(input: &KnapsackInput) -> KnapsackSolution;
+pub trait KnapsackSolver: Sync {
+    fn solve(&self, input: &KnapsackInput) -> KnapsackSolution;
+
+    fn method(&self) -> KnapsackMethod;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -27,7 +31,7 @@ impl KnapsackItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct KnapsackSolution {
     // index of items selected
     pub items: Vec<usize>,
@@ -45,6 +49,13 @@ pub enum KnapsackInputError {
     InvalidItemWeight,
     #[error("Invalid item value")]
     InvalidItemValue,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, AsRefStr, IntoStaticStr)]
+pub enum KnapsackMethod {
+    Dp,
+    Bkt,
+    Fptas,
 }
 
 impl KnapsackInput {
