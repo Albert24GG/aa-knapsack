@@ -1,15 +1,15 @@
+mod benchmark;
+
+use benchmark::run_benchmark;
 use clap::{Parser, Subcommand, ValueEnum};
-use criterion::{black_box, Criterion};
 use knapsack::{
     BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolver,
 };
 use lazy_static::lazy_static;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::time::Duration;
 use text_io::scan;
 
 #[derive(Debug, Parser)]
@@ -43,15 +43,6 @@ enum KnapsackMethodCmd {
         #[arg(default_value_t = 1)]
         granularity: u32,
     },
-}
-
-#[derive(Debug, Serialize)]
-pub struct KnapsackBenchResult {
-    median: Duration,
-    mean: Duration,
-    std_dev: Duration,
-    max: Duration,
-    min: Duration,
 }
 
 lazy_static! {
@@ -131,47 +122,6 @@ fn get_solver(method: &KnapsackMethodCmd) -> Option<&dyn KnapsackSolver> {
         .map(|boxed_trait| boxed_trait.as_ref())
 }
 
-fn process_duration(durations: &[Duration]) -> KnapsackBenchResult {
-    let mut durations = durations.to_vec();
-    durations.sort();
-
-    let len = durations.len();
-    let median = durations[len / 2];
-    let mean = durations.iter().sum::<Duration>() / len as u32;
-    let std_dev = durations
-        .iter()
-        .map(|d| (d.as_nanos() as f64 - mean.as_nanos() as f64).powi(2))
-        .sum::<f64>()
-        .sqrt() as u64;
-    let max = *durations.last().unwrap();
-    let min = *durations.first().unwrap();
-
-    KnapsackBenchResult {
-        median,
-        mean,
-        std_dev: Duration::from_nanos(std_dev),
-        max,
-        min,
-    }
-}
-
-fn run_benchmark(solver: &dyn KnapsackSolver, input: &KnapsackInput) -> KnapsackBenchResult {
-    let mut criterion = Criterion::default().without_plots();
-
-    let mut durations = Vec::<Duration>::new();
-
-    criterion.bench_function(solver.method().into(), |b| {
-        b.iter(|| {
-            let start = std::time::Instant::now();
-            solver.solve(black_box(input));
-            let elapsed = start.elapsed();
-            durations.push(elapsed);
-        })
-    });
-
-    process_duration(&durations)
-}
-
 fn main() {
     let args = CommandArgs::parse();
 
@@ -184,7 +134,7 @@ fn main() {
             serde_json::to_value(&solution).unwrap()
         }
         KnapsackAction::Benchmark => {
-            let result = run_benchmark(solver, &input);
+            let result = run_benchmark(solver, &input).unwrap();
             serde_json::to_value(&result).unwrap()
         }
     };
