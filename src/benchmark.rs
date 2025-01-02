@@ -81,15 +81,8 @@ pub fn run_benchmark(
 ) -> Result<KnapsackBenchResult, BenchmarkError> {
     let mut criterion = Criterion::default().without_plots();
 
-    let mut durations = Vec::<Duration>::new();
-
     criterion.bench_function(solver.method().into(), |b| {
-        b.iter(|| {
-            let start = std::time::Instant::now();
-            solver.solve(black_box(input));
-            let elapsed = start.elapsed();
-            durations.push(elapsed);
-        })
+        b.iter(|| solver.solve(black_box(input)))
     });
 
     let results_path = format!(
