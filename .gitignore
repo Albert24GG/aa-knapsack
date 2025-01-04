@@ -1,1 +1,4 @@
 /target
+/checker/.xmake
+/checker/build
+/checker/debug.log
