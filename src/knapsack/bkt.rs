@@ -3,7 +3,7 @@ use super::{KnapsackInput, KnapsackMethod, KnapsackSolution, KnapsackSolver};
 pub struct BktSolver;
 
 impl BktSolver {
-    fn bkt_non_recursive(input: &KnapsackInput) -> KnapsackSolution {
+    fn bkt_iterative(input: &KnapsackInput) -> KnapsackSolution {
         let n = input.items.len();
         let mut best_solution = KnapsackSolution {
             items: Vec::new(),
@@ -60,7 +60,7 @@ impl BktSolver {
 
 impl KnapsackSolver for BktSolver {
     fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
-        BktSolver::bkt_non_recursive(input)
+        BktSolver::bkt_iterative(input)
     }
 
     fn method(&self) -> super::KnapsackMethod {
