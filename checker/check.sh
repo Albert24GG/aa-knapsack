@@ -46,7 +46,7 @@ run_special_tests() {
 
     for test in "$argc_test_dir"/special/*.kp; do
         echo "Running $(basename "$test")"
-        run_test "$test" "fptas"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "fptas"
         if [ $? -eq 1 ]; then
             echo "failed"
             continue
@@ -130,7 +130,7 @@ run_one_test() {
     # Recalculate the answer
     init
     # Precalculate the answer
-    xmake r knapsack_dp <"$argc_test" > /tmp/tmp.ans
+    xmake r knapsack_dp <"$argc_test" >/tmp/tmp.ans
 
     run_test "$argc_test" "/tmp/tmp.ans" "$argc_method"
     if [ $? -eq 1 ]; then
