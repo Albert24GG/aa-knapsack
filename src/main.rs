@@ -1,7 +1,7 @@
 mod benchmark;
 
 use benchmark::run_benchmark;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, ValueEnum};
 use knapsack::{
     BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolver,
 };
@@ -20,12 +20,16 @@ struct CommandArgs {
     #[arg(short, long, value_name = "OUTPUT_FILE", default_value = "out.json")]
     output_file: PathBuf,
 
+    #[arg(short, long, default_value_t = 1)]
+    /// Granularity for the FPTAS method. This is only used when the method is FPTAS.
+    granularity: u32,
+
     #[arg()]
     /// Action to perform
     action: KnapsackAction,
 
+    #[arg()]
     /// Method used for solving the problem
-    #[clap(subcommand)]
     method: KnapsackMethodCmd,
 }
 
@@ -35,14 +39,11 @@ enum KnapsackAction {
     Benchmark,
 }
 
-#[derive(Debug, Subcommand, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, Hash, PartialEq, Eq)]
 enum KnapsackMethodCmd {
     Dp,
     Bkt,
-    Fptas {
-        #[arg(default_value_t = 1)]
-        granularity: u32,
-    },
+    Fptas,
 }
 
 lazy_static! {
@@ -99,12 +100,7 @@ fn parse_input(args: &CommandArgs) -> KnapsackInput {
         items.push(KnapsackItem::new(weight, value));
     }
 
-    let granularity = match args.method {
-        KnapsackMethodCmd::Fptas { granularity } => Some(granularity),
-        _ => None,
-    };
-
-    KnapsackInput::new(items, capacity, granularity).unwrap()
+    KnapsackInput::new(items, capacity, args.granularity).unwrap()
 }
 
 fn get_method(method: &KnapsackMethodCmd) -> KnapsackMethod {

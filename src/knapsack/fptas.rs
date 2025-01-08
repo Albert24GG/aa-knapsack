@@ -40,7 +40,7 @@ impl KnapsackSolver for FptasDpSolver {
     fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         let scaled_items = FptasDpSolver::scale_items(input);
         let scaled_input =
-            KnapsackInput::new(scaled_items, input.capacity, Some(input.granularity)).unwrap();
+            KnapsackInput::new(scaled_items, input.capacity, input.granularity).unwrap();
 
         let scaled_solution = DpSolver.solve(&scaled_input);
 

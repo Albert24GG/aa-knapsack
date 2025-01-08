@@ -86,16 +86,16 @@ impl KnapsackInput {
     pub fn new(
         items: Vec<KnapsackItem>,
         capacity: u32,
-        granularity: Option<u32>,
+        granularity: u32,
     ) -> Result<Self, KnapsackInputError> {
         Self::validate_items(&items)?;
         Self::validate_capacity(capacity)?;
-        granularity.map_or(Ok(()), Self::validate_granularity)?;
+        Self::validate_granularity(granularity)?;
 
         Ok(KnapsackInput {
             items,
             capacity,
-            granularity: granularity.unwrap_or(1),
+            granularity,
         })
     }
 
