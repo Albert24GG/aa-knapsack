@@ -8,19 +8,20 @@
 
 # Run the tests
 # $1: test file
-# $2: algorithm
+# $2: answer file
+# $3: algorithm
 run_test() {
-    ANSWER=$(cat "$argc_answers_dir"/$(basename "$1" .kp).ans)
-    cargo run -r -- --input-file "$1" --granularity "$argc_granularity" run "$2" 2>>debug.log
+    ANSWER="$(<$2)"
+    cargo run -r -- --input-file "$1" --granularity "$argc_granularity" run "$3" 2>>debug.log
     # Output saved in out.json
     if [ "$argc_save" ]; then
-        cp out.json "$argc_output_dir"/"$2"/$(basename "$1" .kp).json
+        cp out.json "$argc_output_dir"/"$3"/$(basename "$1" .kp).json
     fi
     VALUE=$(jq -r '.total_value' out.json)
     ITEMS=$(jq -r '.items | @sh' out.json)
     rm out.json
 
-    if [ "$2" == "fptas" ]; then
+    if [ "$3" == "fptas" ]; then
         # Check how close the value is to the answer
         PERCENTAGE=$(echo "scale=5; 100 * $VALUE / $ANSWER" | bc)
         echo "Fptas for granularity $argc_granularity: VALUE is $PERCENTAGE% of ANSWER"
@@ -61,16 +62,16 @@ run_small_tests() {
     echo
     for test in "$argc_test_dir"/small/*.kp; do
         echo "Running $(basename "$test")"
-        run_test "$test" "bkt"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "bkt"
         if [ $? -eq 1 ]; then
             echo "bkt failed"
         fi
-        run_test "$test" "dp"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "dp"
         if [ $? -eq 1 ]; then
             echo "dp failed"
             continue
         fi
-        run_test "$test" "fptas"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "fptas"
         echo "Test passed"
     done
 }
@@ -82,12 +83,12 @@ run_mid_tests() {
 
     for test in "$argc_test_dir"/mid/*.kp; do
         echo "Running $(basename "$test")"
-        run_test "$test" "dp"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "dp"
         if [ $? -eq 1 ]; then
             echo "dp failed"
             continue
         fi
-        run_test "$test" "fptas"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "fptas"
         echo "Test passed"
     done
 }
@@ -99,12 +100,12 @@ run_large_tests() {
 
     for test in "$argc_test_dir"/large/*.kp; do
         echo "Running $(basename "$test")"
-        run_test "$test" "dp"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "dp"
         if [ $? -eq 1 ]; then
             echo "dp failed"
             continue
         fi
-        run_test "$test" "fptas"
+        run_test "$test" ""$argc_answers_dir"/$(basename "$test" .kp).ans" "fptas"
         echo "Test passed"
     done
 }
@@ -129,14 +130,16 @@ run_one_test() {
     # Recalculate the answer
     init
     # Precalculate the answer
-    xmake r knapsack_dp <"$argc_test" >$argc_answers_dir/$(basename "$argc_test" .kp).ans
+    xmake r knapsack_dp <"$argc_test" > /tmp/tmp.ans
 
-    run_test "$argc_test" "$argc_method"
+    run_test "$argc_test" "/tmp/tmp.ans" "$argc_method"
     if [ $? -eq 1 ]; then
         echo "Test $argc_test failed"
     else
         echo "Test $argc_test passed"
     fi
+
+    rm /tmp/tmp.ans
     exit 0
 }
 
@@ -149,7 +152,7 @@ run_all_tests() {
     if [ ! -d $argc_answers_dir ]; then
         echo "Precalculating answers"
         mkdir -p $argc_answers_dir
-        find "$argc_test_dir" -name "*.kp" -exec bash -c 'xmake r knapsack_dp <$0 >$1/$(basename "$0" .kp).ans' {} $argc_answers_dir \;
+        find "$argc_test_dir" -name "*.kp" -exec bash -c 'xmake r knapsack_dp <$0 >"$1"/"$(basename "$0" .kp).ans"' {} $argc_answers_dir \;
     fi
 
     run_small_tests
