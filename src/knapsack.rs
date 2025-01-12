@@ -41,14 +41,22 @@ pub struct KnapsackSolution {
 
 #[derive(Error, Debug)]
 pub enum KnapsackInputError {
+    #[error("Invalid item count")]
+    InvalidItemCount,
+    #[error("Missing item count")]
+    MissingItemCount,
     #[error("Invalid capacity")]
     InvalidCapacity,
+    #[error("Missing capacity")]
+    MissingCapacity,
     #[error("Invalid granularity")]
     InvalidGranularity,
     #[error("Invalid item weight")]
     InvalidItemWeight,
     #[error("Invalid item value")]
     InvalidItemValue,
+    #[error("Invalid item specification")]
+    InvalidItemSpecification,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, AsRefStr, IntoStaticStr)]
@@ -59,6 +67,51 @@ pub enum KnapsackMethod {
 }
 
 impl KnapsackInput {
+    /// Parse the input string into a KnapsackInput struct
+    ///
+    /// The input string should have the following format:
+    /// n - number of items on the first line
+    /// capacity - the capacity of the knapsack on the second line
+    /// n lines with two integers each, representing the value and weight of each item
+    pub fn parse_input(input: &str) -> Result<KnapsackInput, KnapsackInputError> {
+        let mut lines = input.lines().map(str::trim).filter(|line| !line.is_empty());
+
+        let n: usize;
+        {
+            let line = lines.next().ok_or(KnapsackInputError::MissingItemCount)?;
+            n = line
+                .parse()
+                .map_err(|_| KnapsackInputError::InvalidItemCount)?;
+        }
+
+        let capacity: u32;
+        {
+            let line = lines.next().ok_or(KnapsackInputError::MissingCapacity)?;
+            capacity = line
+                .parse()
+                .map_err(|_| KnapsackInputError::InvalidCapacity)?;
+        }
+
+        let mut items = Vec::with_capacity(n);
+        for line in lines.take(n) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() != 2 {
+                return Err(KnapsackInputError::InvalidItemSpecification);
+            }
+
+            let value: u32 = parts[0]
+                .parse()
+                .map_err(|_| KnapsackInputError::InvalidItemValue)?;
+            let weight: u32 = parts[1]
+                .parse()
+                .map_err(|_| KnapsackInputError::InvalidItemWeight)?;
+
+            items.push(KnapsackItem::new(weight, value));
+        }
+
+        KnapsackInput::new(items, capacity, 1)
+    }
+
     fn validate_items(items: &[KnapsackItem]) -> Result<(), KnapsackInputError> {
         if items.iter().any(|item| item.weight == 0) {
             return Err(KnapsackInputError::InvalidItemWeight);

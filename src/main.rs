@@ -2,15 +2,11 @@ mod benchmark;
 
 use benchmark::run_benchmark;
 use clap::{Parser, ValueEnum};
-use knapsack::{
-    BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolver,
-};
+use knapsack::{BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackMethod, KnapsackSolver};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::fs::{self, File};
 use std::path::PathBuf;
-use text_io::scan;
 
 #[derive(Debug, Parser)]
 struct CommandArgs {
@@ -57,41 +53,12 @@ lazy_static! {
 }
 
 fn parse_input(args: &CommandArgs) -> KnapsackInput {
-    let file = File::open(&args.input_file).unwrap();
-    let mut lines = BufReader::new(file)
-        .lines()
-        .map_while(Result::ok)
-        .filter(|line| !line.trim().is_empty());
+    let input = fs::read_to_string(&args.input_file).unwrap();
 
-    let n: usize;
-    {
-        let line = lines
-            .next()
-            .expect("Missing number of items (n) in the input");
-        scan!(line.bytes() => "{}", n);
-    }
+    let mut parsed_input = KnapsackInput::parse_input(&input).unwrap();
+    parsed_input.set_granularity(args.granularity).unwrap();
 
-    let capacity: u32;
-    {
-        let line = lines.next().expect("Missing capacity in the input");
-        scan!(line.bytes() => "{}", capacity);
-    }
-
-    // Parse items
-    let mut items = Vec::with_capacity(n);
-    for (index, line) in lines.take(n).enumerate() {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() != 2 {
-            panic!("Invalid line at item {}: {:?}", index + 1, line);
-        }
-
-        let value: u32 = parts[0].parse().expect("Failed to parse value");
-        let weight: u32 = parts[1].parse().expect("Failed to parse weight");
-
-        items.push(KnapsackItem::new(weight, value));
-    }
-
-    KnapsackInput::new(items, capacity, args.granularity).unwrap()
+    parsed_input
 }
 
 fn get_method(method: &KnapsackMethodCmd) -> KnapsackMethod {
