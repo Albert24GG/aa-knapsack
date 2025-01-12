@@ -34,7 +34,7 @@ impl KnapsackItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct KnapsackSolution {
     // index of items selected
-    pub items: Option<Vec<usize>>,
+    pub items: Vec<usize>,
     // total value/profit of items selected
     pub total_value: u64,
 }
@@ -111,7 +111,7 @@ impl KnapsackInput {
         self.items.iter().map(|item| item.weight).max().unwrap()
     }
 
-    pub fn max_items_profit(&self) -> u64 {
+    pub fn max_item_profit(&self) -> u64 {
         self.items.iter().map(|item| u64::from(item.value)).sum()
     }
 }

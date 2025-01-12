@@ -35,6 +35,7 @@ run_test() {
         return 1
     fi
 
+    xmake r check $VALUE $ITEMS <"$1"
     return $?
 }
 

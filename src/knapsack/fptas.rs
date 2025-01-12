@@ -4,21 +4,17 @@ use super::{KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolution, Knaps
 pub struct FptasDpSolver;
 
 impl FptasDpSolver {
-    fn get_scaling_factor(input: &KnapsackInput) -> f64 {
-        let max_value = input.items.iter().map(|item| item.value).max().unwrap();
-        max_value as f64 / (input.granularity as usize * input.items.len()) as f64
-    }
-
     fn scale_items(input: &KnapsackInput) -> Vec<KnapsackItem> {
-        let scale = FptasDpSolver::get_scaling_factor(input);
-
+        let max_value = input.items.iter().map(|item| item.value).max().unwrap();
+        let scale =
+            f64::from(input.granularity) / f64::from(max_value) * (input.items.len() as f64);
         input
             .items
             .iter()
             .map(|item| {
                 KnapsackItem::new(
                     item.weight,
-                    (f64::from(item.value) / scale).floor().max(1.0) as u32,
+                    (f64::from(item.value) * scale).floor().max(1.0) as u32,
                 )
             })
             .collect()
@@ -28,12 +24,14 @@ impl FptasDpSolver {
         scaled_solution: KnapsackSolution,
         input: &KnapsackInput,
     ) -> KnapsackSolution {
-        let scale = FptasDpSolver::get_scaling_factor(input);
-        let total_value = scaled_solution.total_value as f64 * scale;
-
+        let total_value = scaled_solution
+            .items
+            .iter()
+            .map(|&item_index| input.items[item_index].value as u64)
+            .sum::<u64>();
         KnapsackSolution {
             items: scaled_solution.items,
-            total_value: total_value.floor() as u64,
+            total_value,
         }
     }
 }

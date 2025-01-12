@@ -3,33 +3,63 @@ use super::{KnapsackInput, KnapsackMethod, KnapsackSolution, KnapsackSolver};
 pub struct DpSolver;
 
 impl DpSolver {
-    fn gen_table(input: &KnapsackInput) -> Vec<u64> {
+    fn gen_table(input: &KnapsackInput) -> Vec<Vec<u64>> {
         let n = input.items.len();
-        let max_profit = input.max_items_profit();
+        let max_profit = input.max_item_profit();
+        let max_cost = input.max_cost();
         let items = &input.items;
-        // We consider f(i, j) as the min weight that can be achieved with a profit of j
-        // using the first i items.
-        // The dp formula is f(i, j) = min(f(i - 1, j), f(i - 1, j - v[i]) + w[i])
-        // Therefore we only need to keep track of the last row of the dp table.
-        // Using a 1D array to represent the dp table. This means we will not be able to
-        // reconstruct the path.
-        // The formula becomes f(j) = min(f(j), f(j - v[i]) + w[i]), considering that
-        // we are iterating in reverse order.
-        let mut dp_table = vec![u64::MAX - max_profit; max_profit as usize + 1];
+        let mut dp_table = vec![vec![0; max_profit as usize + 1]; n];
 
-        dp_table[0] = 0;
-        dp_table[items[0].value as usize] = items[0].weight.into();
+        // base case: if target can be achieved by taking the first item
+        dp_table[0]
+            .iter_mut()
+            .take(items[0].value as usize + 1)
+            .for_each(|x| *x = items[0].weight.into());
+
+        // base case: if target cannot be achieved by taking the first item
+        // use a big value to represent infinity
+        // to prevent overflow, subtract by the maximum cost
+        dp_table[0]
+            .iter_mut()
+            .skip(items[0].value as usize + 1)
+            .for_each(|x| *x = u64::MAX - u64::from(max_cost));
+
+        dp_table[0][0] = 0;
 
         for i in 1..n {
-            for profit in (items[i].value.into()..=max_profit).rev() {
-                let new_weight =
-                    dp_table[(profit - items[i].value as u64) as usize] + items[i].weight as u64;
-
-                dp_table[profit as usize] = dp_table[profit as usize].min(new_weight);
+            for profit in 1..=max_profit {
+                dp_table[i][profit as usize] = if profit >= u64::from(items[i].value) {
+                    let prev_profit = profit - u64::from(items[i].value);
+                    dp_table[i - 1][profit as usize]
+                        .min(dp_table[i - 1][prev_profit as usize] + u64::from(items[i].weight))
+                } else {
+                    dp_table[i - 1][profit as usize]
+                };
             }
         }
 
         dp_table
+    }
+
+    fn gen_path(dp_table: Vec<Vec<u64>>, input: &KnapsackInput, max_profit: u64) -> Vec<usize> {
+        let mut path = Vec::new();
+        let mut profit = max_profit;
+
+        for i in (1..input.items.len()).rev() {
+            if dp_table[i][profit as usize] != dp_table[i - 1][profit as usize] {
+                path.push(i);
+                profit -= u64::from(input.items[i].value);
+            }
+            if profit == 0 {
+                break;
+            }
+        }
+
+        if profit > 0 {
+            path.push(0);
+        }
+
+        path
     }
 }
 
@@ -37,16 +67,17 @@ impl KnapsackSolver for DpSolver {
     fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         let dp_table = DpSolver::gen_table(input);
 
-        let max_profit = dp_table
-            .iter()
-            .enumerate()
-            .filter(|(_, &weight)| weight <= input.capacity.into())
-            .map(|(profit, _)| profit)
+        let max_profit = (0..dp_table[0].len() as u64)
+            .filter(|&profit| {
+                dp_table[input.items.len() - 1][profit as usize] <= u64::from(input.capacity)
+            })
             .max()
-            .unwrap() as u64;
+            .unwrap();
+
+        let selected_items = DpSolver::gen_path(dp_table, input, max_profit);
 
         KnapsackSolution {
-            items: None,
+            items: selected_items,
             total_value: max_profit,
         }
     }
