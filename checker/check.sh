@@ -3,6 +3,7 @@
 # @option -o --output-dir=./output The output directory
 # @option -t --test-dir=./tests The directory containing the tests
 # @option -a --answers-dir=./answers The directory where the answers are stored
+# @option -c --config=./validation_conf.json The configuration file for the tests
 # @flag -s --save Save the output of the tests
 
 available_methods=("bkt" "dp" "fptas")
@@ -116,7 +117,7 @@ precompute_answers() {
     for method in "${available_methods[@]}"; do
         echo "Precalculating answers for $method"
 
-        method_info="$(jq -r ".$method" method_validation.json)"
+        method_info="$(jq -r ".$method" @argc_config)"
 
         tests="$(echo "$method_info" | jq -r ".inputs.[]")"
 
@@ -145,7 +146,7 @@ run_all_tests() {
     for method in "${available_methods[@]}"; do
         echo "Running validation for $method"
 
-        method_info="$(jq -r ".$method" method_validation.json)"
+        method_info="$(jq -r ".$method" $argc_config)"
 
         tests="$(echo "$method_info" | jq -r ".inputs.[]")"
 

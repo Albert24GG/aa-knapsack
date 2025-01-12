@@ -2,6 +2,7 @@
 
 # @option -b --benchmarks-dir=./benchmarks The directory where the benchmarks are stored
 # @option -t --test-dir=./tests The directory containing the tests
+# @option -c --config=./benchmark_conf.json The configuration file for the benchmarks
 
 available_methods=("bkt" "dp" "fptas")
 
@@ -79,7 +80,7 @@ benchmark_all() {
     for method in "${available_methods[@]}"; do
         echo "Running benchmark for $method"
 
-        method_info="$(jq -r ".$method" method_validation.json)"
+        method_info="$(jq -r ".$method" $argc_config)"
 
         tests="$(echo "$method_info" | jq -r ".inputs.[]")"
 
