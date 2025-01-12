@@ -2,4 +2,5 @@
 build/
 debug.log
 answers/
+benchmarks/
 output/
