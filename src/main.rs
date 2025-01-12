@@ -17,7 +17,7 @@ struct CommandArgs {
     #[arg(short, long, value_name = "TEST_FILE", value_hint = clap::ValueHint::FilePath)]
     input_file: PathBuf,
 
-    #[arg(short, long, value_name = "OUTPUT_FILE", default_value = "out.json")]
+    #[arg(short, long, value_name = "OUTPUT_FILE", value_hint = clap::ValueHint::FilePath, default_value = "out.json")]
     output_file: PathBuf,
 
     #[arg(short, long, default_value_t = 1)]
@@ -47,20 +47,11 @@ enum KnapsackMethodCmd {
 }
 
 lazy_static! {
-    static ref METHOD_MAPPER: HashMap<KnapsackMethod, Box<dyn KnapsackSolver>> = {
+    static ref METHOD_MAPPER: HashMap<KnapsackMethod, &'static dyn KnapsackSolver> = {
         let mut m = HashMap::new();
-        m.insert(
-            KnapsackMethod::Dp,
-            Box::new(DpSolver) as Box<dyn KnapsackSolver>,
-        );
-        m.insert(
-            KnapsackMethod::Bkt,
-            Box::new(BktSolver) as Box<dyn KnapsackSolver>,
-        );
-        m.insert(
-            KnapsackMethod::Fptas,
-            Box::new(FptasDpSolver) as Box<dyn KnapsackSolver>,
-        );
+        m.insert(KnapsackMethod::Dp, &DpSolver as &dyn KnapsackSolver);
+        m.insert(KnapsackMethod::Bkt, &BktSolver as &dyn KnapsackSolver);
+        m.insert(KnapsackMethod::Fptas, &FptasDpSolver as &dyn KnapsackSolver);
         m
     };
 }
@@ -113,9 +104,7 @@ fn get_method(method: &KnapsackMethodCmd) -> KnapsackMethod {
 
 fn get_solver(method: &KnapsackMethodCmd) -> Option<&dyn KnapsackSolver> {
     let method = get_method(method);
-    METHOD_MAPPER
-        .get(&method)
-        .map(|boxed_trait| boxed_trait.as_ref())
+    METHOD_MAPPER.get(&method).copied()
 }
 
 fn main() {
