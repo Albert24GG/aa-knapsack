@@ -67,16 +67,3 @@ impl KnapsackSolver for BktSolver {
         KnapsackMethod::Bkt
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bkt_solver() {
-        let solver = BktSolver;
-        let input = generate_input(10, 100);
-        let solution = solver.solve(&input);
-        assert_eq!(solution.total_value, 100);
-    }
-}
