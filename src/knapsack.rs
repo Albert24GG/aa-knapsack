@@ -1,6 +1,7 @@
 pub mod bkt;
 pub mod dp;
 pub mod fptas;
+pub mod minknap;
 
 use std::io::BufRead;
 
@@ -23,7 +24,7 @@ pub struct KnapsackItem {
 #[derive(Debug, Clone)]
 pub struct KnapsackInput {
     items: Vec<KnapsackItem>,
-    capacity: u32,
+    capacity: u64,
     granularity: u32,
 }
 
@@ -73,6 +74,7 @@ pub enum KnapsackMethod {
     Dp,
     Bkt,
     Fptas,
+    MinKnap,
 }
 
 impl KnapsackInput {
@@ -135,7 +137,7 @@ impl KnapsackInput {
         Ok(())
     }
 
-    fn validate_capacity(capacity: u32) -> Result<(), KnapsackInputError> {
+    fn validate_capacity(capacity: u64) -> Result<(), KnapsackInputError> {
         if capacity == 0 {
             return Err(KnapsackInputError::InvalidCapacity);
         }
@@ -151,7 +153,7 @@ impl KnapsackInput {
 
     pub fn new(
         items: Vec<KnapsackItem>,
-        capacity: u32,
+        capacity: u64,
         granularity: u32,
     ) -> Result<Self, KnapsackInputError> {
         Self::validate_items(&items)?;

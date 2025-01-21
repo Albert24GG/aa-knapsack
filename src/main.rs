@@ -2,7 +2,10 @@ mod benchmark;
 
 use benchmark::run_benchmark;
 use clap::{Parser, ValueEnum};
-use knapsack::{BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackMethod, KnapsackSolver};
+use knapsack::{
+    BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackMethod, KnapsackSolver,
+    MinKnapSolver,
+};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fs::File;
@@ -10,6 +13,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
+#[clap(name = "knapsack", version = "0.1.0", author = "Albert24GG")]
 struct CommandArgs {
     #[arg(short, long, value_name = "TEST_FILE", value_hint = clap::ValueHint::FilePath)]
     input_file: PathBuf,
@@ -41,6 +45,7 @@ enum KnapsackMethodCmd {
     Dp,
     Bkt,
     Fptas,
+    MinKnap,
 }
 
 lazy_static! {
@@ -49,6 +54,10 @@ lazy_static! {
         m.insert(KnapsackMethod::Dp, &DpSolver as &dyn KnapsackSolver);
         m.insert(KnapsackMethod::Bkt, &BktSolver as &dyn KnapsackSolver);
         m.insert(KnapsackMethod::Fptas, &FptasDpSolver as &dyn KnapsackSolver);
+        m.insert(
+            KnapsackMethod::MinKnap,
+            &MinKnapSolver as &dyn KnapsackSolver,
+        );
         m
     };
 }
@@ -69,6 +78,7 @@ fn get_method(method: &KnapsackMethodCmd) -> KnapsackMethod {
         KnapsackMethodCmd::Dp => KnapsackMethod::Dp,
         KnapsackMethodCmd::Bkt => KnapsackMethod::Bkt,
         KnapsackMethodCmd::Fptas { .. } => KnapsackMethod::Fptas,
+        KnapsackMethodCmd::MinKnap => KnapsackMethod::MinKnap,
     }
 }
 
