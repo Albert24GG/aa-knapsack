@@ -605,10 +605,6 @@ impl<'a> MinKnapInstance<'a> {
                 self.swap_state_buffers(&mut current_states, &mut next_states);
                 self.update_solution_history(&mut current_states);
 
-                if self.best_sol_weight == self.problem_instance.capacity {
-                    // If we have already found the best solution, we can stop
-                    break;
-                }
                 visited_items_count += 1;
             }
 
@@ -618,10 +614,6 @@ impl<'a> MinKnapInstance<'a> {
                 self.swap_state_buffers(&mut current_states, &mut next_states);
                 self.update_solution_history(&mut current_states);
 
-                if self.best_sol_weight == self.problem_instance.capacity {
-                    // If we have already found the best solution, we can stop
-                    break;
-                }
                 visited_items_count += 1;
             }
         }
