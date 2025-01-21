@@ -2,6 +2,7 @@ pub mod bkt;
 pub mod dp;
 pub mod fptas;
 pub mod minknap;
+mod sol_tree;
 
 use std::io::BufRead;
 

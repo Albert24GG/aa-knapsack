@@ -1,6 +1,12 @@
-use super::{KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolution, KnapsackSolver};
+use std::ops::Rem;
+
+use super::{
+    sol_tree::{SolutionFragment, SolutionTree},
+    KnapsackInput, KnapsackItem, KnapsackMethod, KnapsackSolution, KnapsackSolver,
+};
 use bitvec::prelude::*;
 
+#[derive(Debug)]
 struct ItemEfficiency {
     index: usize,
     efficiency: f32,
@@ -118,8 +124,6 @@ impl BreakSolution {
 struct MinKnapInstance<'a> {
     /// The weight of the best solution found so far
     best_sol_weight: u64,
-    /// The decision vector of the best solution found so far
-    best_sol_decisions: BitVec,
     /// A bit vector representing the items included in the best solution
     decision_vec: BitVec,
     /// The efficiencies of the considered items sorted in decreasing order (excluding zero weight items and items that are too heavy)
@@ -137,13 +141,23 @@ struct MinKnapInstance<'a> {
     profit_lower_bound: u64,
     /// The max weight a state can reach to still be feasible (detailed in the paper & book)
     max_allowed_weight: u64,
+    /// The order in which the items have been considered/traversed
+    /// It contains the indices of the items in the "item_efficiencies" vector
+    /// It is used for building the decision vector
+    traversal_order: Vec<usize>,
+    /// The index of the best solution item in the traversal order
+    best_sol_item: usize,
+    /// The fragment corresponding to the best solution found so far
+    best_sol_fragment: SolutionFragment,
+    /// The solution tree constructed out of fragments
+    solution_tree: SolutionTree,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy)]
 struct MinKnapState {
     weight: u64,
     profit: u64,
-    decisions: BitVec,
+    sol_fragment: SolutionFragment,
 }
 
 impl<'a> MinKnapInstance<'a> {
@@ -173,7 +187,6 @@ impl<'a> MinKnapInstance<'a> {
 
         MinKnapInstance {
             best_sol_weight,
-            best_sol_decisions: BitVec::EMPTY,
             decision_vec,
             item_efficiencies,
             base_profit,
@@ -183,6 +196,10 @@ impl<'a> MinKnapInstance<'a> {
             t,
             profit_lower_bound,
             max_allowed_weight,
+            traversal_order: Vec::new(),
+            best_sol_item: 0,
+            solution_tree: SolutionTree::new(),
+            best_sol_fragment: SolutionFragment::default(),
         }
     }
 
@@ -231,17 +248,15 @@ impl<'a> MinKnapInstance<'a> {
             self.profit_lower_bound = state.profit;
             self.best_sol_weight = state.weight;
 
-            self.best_sol_decisions = state.decisions.clone();
+            self.best_sol_item = self.traversal_order.len() - 1;
+            self.best_sol_fragment = state.sol_fragment;
         }
     }
 
-    /// Mark the decision of the given efficiency order index in the state
-    ///
-    /// include - whether to include the item or not
-    fn mark_decision(&self, state: &mut MinKnapState, efficiency_order_idx: usize, include: bool) {
-        state
-            .decisions
-            .set(self.item_efficiencies[efficiency_order_idx].index, include);
+    /// Add the item at the given efficiency order index to the traversal order
+    /// This should be called when exploring a new position by expanding the core
+    fn add_to_traversal_order(&mut self, efficiency_order_idx: usize) {
+        self.traversal_order.push(efficiency_order_idx);
     }
 
     /// Explore the core problem by trying to include item t
@@ -264,6 +279,8 @@ impl<'a> MinKnapInstance<'a> {
         // This ordering is achieved by using two iterators: one for trying to insert the item in the
         // states and one for leaving the states unchanged
 
+        self.add_to_traversal_order(self.t);
+
         let item = self.get_item(self.t);
         let state_count = current_states.len();
 
@@ -283,7 +300,7 @@ impl<'a> MinKnapInstance<'a> {
                 let mut new_state = MinKnapState {
                     weight: current_states[insert_index].weight + item.weight as u64,
                     profit: current_states[insert_index].profit + item.profit as u64,
-                    decisions: BitVec::EMPTY,
+                    ..current_states[insert_index]
                 };
 
                 if new_state.weight > self.max_allowed_weight {
@@ -309,15 +326,8 @@ impl<'a> MinKnapInstance<'a> {
                     continue;
                 }
 
-                // If we know that the state will no longer be visited, we can move it out
-                new_state.decisions = if insert_index < no_insert_index {
-                    std::mem::take(&mut current_states[insert_index].decisions)
-                } else {
-                    current_states[insert_index].decisions.clone()
-                };
-
-                // This state is feasible, so we mark it in the decision vector
-                self.mark_decision(&mut new_state, self.t, true);
+                // Mark the decision (add) in the decision vector
+                new_state.sol_fragment.add_decision(true);
 
                 // Only changed states(new states) can create new lower bounds
                 self.try_update_lower_bound(&new_state);
@@ -327,7 +337,7 @@ impl<'a> MinKnapInstance<'a> {
                 next_states
                     .last_mut()
                     .filter(|last_state| last_state.weight == new_state.weight)
-                    .map(|last_state| std::mem::swap(last_state, &mut new_state))
+                    .map(|last_state| *last_state = new_state)
                     .or_else(|| {
                         next_states.push(new_state);
                         Some(())
@@ -355,19 +365,17 @@ impl<'a> MinKnapInstance<'a> {
                     continue;
                 }
 
-                // If we know that the state will no longer be visited, we can move it out
-                let mut current_state = if no_insert_index < insert_index {
-                    std::mem::take(&mut current_states[no_insert_index])
-                } else {
-                    current_states[no_insert_index].clone()
-                };
+                let mut current_state = *current_state;
+
+                // Mark the decision (no action) in the decision vector
+                current_state.sol_fragment.add_decision(false);
 
                 // If this state dominates the last state in next_states, overwrite it,
                 // otherwise, add it to the end of next_states
                 next_states
                     .last_mut()
                     .filter(|last_state| last_state.weight == current_state.weight)
-                    .map(|last_state| std::mem::swap(last_state, &mut current_state))
+                    .map(|last_state| *last_state = current_state)
                     .or_else(|| {
                         next_states.push(current_state);
                         Some(())
@@ -387,6 +395,8 @@ impl<'a> MinKnapInstance<'a> {
     ) {
         // For more details, see the comments in explore_item_t
         // The only difference is that we are excluding the item s instead of including the item t
+
+        self.add_to_traversal_order(self.s);
 
         let item = self.get_item(self.s);
         let state_count = current_states.len();
@@ -423,20 +433,17 @@ impl<'a> MinKnapInstance<'a> {
                     continue;
                 }
 
-                // let mut current_state = current_state.clone();
-                // If we know that the state will no longer be visited, we can move it out
-                let mut current_state = if no_remove_index < remove_index {
-                    std::mem::take(&mut current_states[no_remove_index])
-                } else {
-                    current_states[no_remove_index].clone()
-                };
+                let mut current_state = *current_state;
+
+                // Mark the decision (no action) in the decision vector
+                current_state.sol_fragment.add_decision(false);
 
                 // If this state dominates the last state in next_states, overwrite it,
                 // otherwise, add it to the end of next_states
                 next_states
                     .last_mut()
                     .filter(|last_state| last_state.weight == current_state.weight)
-                    .map(|last_state| std::mem::swap(last_state, &mut current_state))
+                    .map(|last_state| *last_state = current_state)
                     .or_else(|| {
                         next_states.push(current_state);
                         Some(())
@@ -448,7 +455,7 @@ impl<'a> MinKnapInstance<'a> {
                 let mut new_state = MinKnapState {
                     weight: current_states[remove_index].weight - item.weight as u64,
                     profit: current_states[remove_index].profit - item.profit as u64,
-                    decisions: BitVec::EMPTY,
+                    ..current_states[remove_index]
                 };
 
                 if new_state.weight > self.max_allowed_weight {
@@ -474,15 +481,8 @@ impl<'a> MinKnapInstance<'a> {
                     continue;
                 }
 
-                // If we know that the state will no longer be visited, we can move it out
-                new_state.decisions = if remove_index < no_remove_index {
-                    std::mem::take(&mut current_states[remove_index].decisions)
-                } else {
-                    current_states[remove_index].decisions.clone()
-                };
-
-                // This state is feasible, so we mark it in the decision vector
-                self.mark_decision(&mut new_state, self.s, false);
+                // Mark the decision (remove) in the decision vector
+                new_state.sol_fragment.add_decision(true);
 
                 // Only changed states(new states) can create new lower bounds
                 self.try_update_lower_bound(&new_state);
@@ -492,7 +492,7 @@ impl<'a> MinKnapInstance<'a> {
                 next_states
                     .last_mut()
                     .filter(|last_state| last_state.weight == new_state.weight)
-                    .map(|last_state| std::mem::swap(last_state, &mut new_state))
+                    .map(|last_state| *last_state = new_state)
                     .or_else(|| {
                         next_states.push(new_state);
                         Some(())
@@ -513,13 +513,79 @@ impl<'a> MinKnapInstance<'a> {
         std::mem::swap(current_states, next_states);
     }
 
+    fn update_solution_history(&mut self, current_states: &mut [MinKnapState]) {
+        if self.traversal_order.len().rem(u64::BITS as usize) == 0 {
+            current_states.iter_mut().for_each(|state| {
+                let prev_fragment_idx = self.solution_tree.push_fragment(state.sol_fragment);
+                state
+                    .sol_fragment
+                    .update_previous_idx(Some(prev_fragment_idx));
+                state.sol_fragment.clear_value();
+            });
+        }
+    }
+
+    fn reconstruct_solution(&mut self) {
+        // In case the traversal order is empty, it means that the best solution is the break solution
+        // and the decision vector is already set
+        if self.traversal_order.is_empty() {
+            return;
+        }
+
+        // Any index lower than b, for which the decision is 1, means that it was removed
+        // Any index higher or equal to b, for which the decision is 1, means that it was added
+        // The 0 decision means that it was left unchanged
+        let b = self.break_solution.break_index;
+
+        let mut decision_pos = self.best_sol_item;
+        let mut fragment = self.best_sol_fragment;
+
+        loop {
+            // Process the current fragment
+            // Positions to be processed in the current fragment
+            let elements_in_fragment = decision_pos.rem(u64::BITS as usize) + 1;
+
+            for i in 0..elements_in_fragment {
+                let decision = fragment.get_decision(i);
+
+                if !decision {
+                    continue;
+                }
+
+                let effiency_order_idx = self.traversal_order[decision_pos - i];
+                let actual_item_idx = self.item_efficiencies[effiency_order_idx].index;
+
+                if effiency_order_idx < b {
+                    // The item was removed
+                    // self.decision_vec.set(effiency_order_idx, false);
+                    self.decision_vec.set(actual_item_idx, false);
+                } else {
+                    // The item was added
+                    // self.decision_vec.set(effiency_order_idx, true);
+                    self.decision_vec.set(actual_item_idx, true);
+                }
+            }
+
+            // Move to the previous fragment
+            // fragment = self.solution_tree.get_fragment(prev_idx).unwrap().clone();
+            // decision_pos = decision_pos.saturating_sub(elements_in_fragment);
+            if let Some(prev_idx) = fragment.get_previous_idx() {
+                fragment = *self.solution_tree.get_fragment(prev_idx).unwrap();
+                decision_pos = decision_pos.saturating_sub(elements_in_fragment);
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Solve the problem, returning the best profit found and its corresponding weight
-    fn solve(mut self) -> (u64, u64) {
+    fn solve(mut self) -> (u64, u64, BitVec) {
         // Check the edge case when the break solution is already the best solution
         if self.break_solution.break_index == self.problem_instance.items.len() {
             return (
                 self.break_solution.total_profit,
                 self.break_solution.total_weight,
+                self.decision_vec,
             );
         }
 
@@ -532,11 +598,7 @@ impl<'a> MinKnapInstance<'a> {
         current_states.push(MinKnapState {
             weight: self.break_solution.total_weight,
             profit: self.break_solution.total_profit,
-            decisions: {
-                let mut d = self.decision_vec.clone();
-                d.resize(n, false);
-                d
-            },
+            sol_fragment: SolutionFragment::default(),
         });
 
         while !current_states.is_empty() && visited_items_count < n {
@@ -544,6 +606,7 @@ impl<'a> MinKnapInstance<'a> {
                 self.t += 1;
                 self.explore_item_t(&mut current_states, &mut next_states);
                 self.swap_state_buffers(&mut current_states, &mut next_states);
+                self.update_solution_history(&mut current_states);
 
                 if self.best_sol_weight == self.problem_instance.capacity {
                     // If we have already found the best solution, we can stop
@@ -556,6 +619,7 @@ impl<'a> MinKnapInstance<'a> {
                 self.s -= 1;
                 self.explore_item_s(&mut current_states, &mut next_states);
                 self.swap_state_buffers(&mut current_states, &mut next_states);
+                self.update_solution_history(&mut current_states);
 
                 if self.best_sol_weight == self.problem_instance.capacity {
                     // If we have already found the best solution, we can stop
@@ -565,18 +629,12 @@ impl<'a> MinKnapInstance<'a> {
             }
         }
 
-        println!("Best solution decision vector:{:?}", {
-            if self.best_sol_decisions.is_empty() {
-                self.decision_vec
-            } else {
-                self.best_sol_decisions
-            }
-        });
+        self.reconstruct_solution();
 
-        // TODO: build the decision vector
         (
             self.profit_lower_bound + self.base_profit,
             self.best_sol_weight,
+            self.decision_vec,
         )
     }
 }
@@ -586,12 +644,16 @@ pub struct MinKnapSolver;
 impl KnapsackSolver for MinKnapSolver {
     fn solve(&self, input: &KnapsackInput) -> KnapsackSolution {
         let instance = MinKnapInstance::new(input);
-        let (profit, weight) = instance.solve();
+        let (profit, weight, decision_vec) = instance.solve();
 
-        println!("Profit: {}, Weight: {}", profit, weight);
+        let selected_items: Vec<usize> = decision_vec
+            .iter()
+            .enumerate()
+            .filter_map(|(i, decision)| decision.then(|| i))
+            .collect();
 
         KnapsackSolution {
-            items: vec![],
+            items: selected_items,
             total_value: profit,
         }
     }
