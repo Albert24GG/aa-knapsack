@@ -26,10 +26,10 @@ fn prepare_items(input: &KnapsackInput) -> (Vec<usize>, BitVec, u64) {
         .filter_map(|(i, item)| {
             if item.weight == 0 {
                 decision_vec.set(i, true);
-                base_profit += item.profit as u64;
+                base_profit += item.profit;
                 return None;
             }
-            if item.weight as u64 <= input.capacity {
+            if item.weight <= input.capacity {
                 Some(i)
             } else {
                 None
@@ -42,8 +42,8 @@ fn prepare_items(input: &KnapsackInput) -> (Vec<usize>, BitVec, u64) {
     items.sort_by(|a, b| {
         let item_a = &input.items[*a];
         let item_b = &input.items[*b];
-        let eff_a = item_a.profit as u64 * item_b.weight as u64;
-        let eff_b = item_b.profit as u64 * item_a.weight as u64;
+        let eff_a = item_a.profit * item_b.weight;
+        let eff_b = item_b.profit * item_a.weight;
         eff_b.cmp(&eff_a)
     });
 
@@ -80,9 +80,9 @@ impl BreakSolution {
 
         while i < efficiency_ordering.len() {
             let item = &input.items[efficiency_ordering[i]];
-            if total_weight + item.weight as u64 <= input.capacity {
-                total_weight += item.weight as u64;
-                total_profit += item.profit as u64;
+            if total_weight + item.weight <= input.capacity {
+                total_weight += item.weight;
+                total_profit += item.profit;
                 decision_vec.set(efficiency_ordering[i], true);
             } else {
                 result = BreakSolution {
@@ -212,10 +212,7 @@ impl<'a> MinKnapInstance<'a> {
                 let weight_diff = self.problem_instance.capacity - current_state.weight;
                 let next_item = self.get_item(t + 1);
 
-                // current_state.profit
-                //     + (weight_diff * next_item.profit as u64).div_ceil(next_item.weight as u64)
-                current_state.profit
-                    + (weight_diff * next_item.profit as u64) / next_item.weight as u64
+                current_state.profit + (weight_diff * next_item.profit) / next_item.weight
             }
         } else {
             // Over capacity, we can try reducing the core by excluding the next item after s
@@ -227,12 +224,10 @@ impl<'a> MinKnapInstance<'a> {
                 // Try linearly reducing the core, using the same integer arithmetic as above
                 let weight_diff = current_state.weight - self.problem_instance.capacity;
                 let prev_item = self.get_item(s - 1);
-                // current_state.profit.saturating_sub(
-                //     (weight_diff * prev_item.profit as u64).div_ceil(prev_item.weight as u64),
-                // )
-                current_state.profit.saturating_sub(
-                    (weight_diff * prev_item.profit as u64) / prev_item.weight as u64,
-                )
+
+                current_state
+                    .profit
+                    .saturating_sub((weight_diff * prev_item.profit) / prev_item.weight)
             }
         }
     }
@@ -291,12 +286,12 @@ impl<'a> MinKnapInstance<'a> {
             // The profit ordering is maintained by the fact that we are discarding dominated states
             if no_insert_index >= state_count
                 || current_states[no_insert_index].weight
-                    > current_states[insert_index].weight + item.weight as u64
+                    > current_states[insert_index].weight + item.weight
             {
                 // The new state that we would get by including the item in the current state
                 let mut new_state = MinKnapState {
-                    weight: current_states[insert_index].weight + item.weight as u64,
-                    profit: current_states[insert_index].profit + item.profit as u64,
+                    weight: current_states[insert_index].weight + item.weight,
+                    profit: current_states[insert_index].profit + item.profit,
                     ..current_states[insert_index]
                 };
 
@@ -408,7 +403,7 @@ impl<'a> MinKnapInstance<'a> {
             // The profit ordering is maintained by the fact that we are discarding dominated states
             if remove_index >= state_count
                 || current_states[no_remove_index].weight
-                    <= current_states[remove_index].weight - item.weight as u64
+                    <= current_states[remove_index].weight - item.weight
             {
                 let current_state = &current_states[no_remove_index];
 
@@ -450,8 +445,8 @@ impl<'a> MinKnapInstance<'a> {
             } else {
                 // The new state that we would get by including the item in the current state
                 let mut new_state = MinKnapState {
-                    weight: current_states[remove_index].weight - item.weight as u64,
-                    profit: current_states[remove_index].profit - item.profit as u64,
+                    weight: current_states[remove_index].weight - item.weight,
+                    profit: current_states[remove_index].profit - item.profit,
                     ..current_states[remove_index]
                 };
 

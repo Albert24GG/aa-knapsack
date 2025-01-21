@@ -12,9 +12,9 @@ impl DpSolver {
         let items = &input.items;
         let mut dp_table = Array2::<u64>::zeros((n, max_profit as usize + 1));
 
-        dp_table.row_mut(0).fill(u64::MAX - max_cost as u64);
+        dp_table.row_mut(0).fill(u64::MAX - max_cost);
         dp_table[(0, 0)] = 0;
-        dp_table[(0, items[0].profit as usize)] = items[0].weight.into();
+        dp_table[(0, items[0].profit as usize)] = items[0].weight;
 
         for i in 1..n {
             // Copy the previous row elements that have a profit less than the current item's value
@@ -23,9 +23,8 @@ impl DpSolver {
             }
             // Try to improve the weight for a given profit using the current item
             for profit in items[i].profit as usize..=max_profit as usize {
-                dp_table[(i, profit)] = dp_table[(i - 1, profit)].min(
-                    dp_table[(i - 1, profit - items[i].profit as usize)] + items[i].weight as u64,
-                );
+                dp_table[(i, profit)] = dp_table[(i - 1, profit)]
+                    .min(dp_table[(i - 1, profit - items[i].profit as usize)] + items[i].weight);
             }
         }
 
@@ -39,7 +38,7 @@ impl DpSolver {
         for i in (1..input.items.len()).rev() {
             if dp_table[(i, profit as usize)] != dp_table[(i - 1, profit as usize)] {
                 path.push(i);
-                profit -= u64::from(input.items[i].profit);
+                profit -= input.items[i].profit;
             }
             if profit == 0 {
                 break;
@@ -62,7 +61,7 @@ impl KnapsackSolver for DpSolver {
             .row(input.items.len() - 1)
             .iter()
             .enumerate()
-            .filter(|(_, &weight)| weight <= u64::from(input.capacity))
+            .filter(|(_, &weight)| weight <= input.capacity)
             .map(|(profit, _)| profit as u64)
             .max()
             .unwrap();

@@ -25,7 +25,7 @@ impl BktSolver {
                 if current_weight + item.weight <= input.capacity {
                     stack.push((current_item, current_weight, current_value, true));
                     current_solution.items.push(current_item);
-                    current_solution.total_value += u64::from(item.profit);
+                    current_solution.total_value += item.profit;
                     current_weight += item.weight;
                     current_value += item.profit;
                     current_item += 1;
@@ -44,7 +44,7 @@ impl BktSolver {
             if let Some((item, weight, value, included)) = stack.pop() {
                 if included {
                     current_solution.items.pop();
-                    current_solution.total_value -= u64::from(input.items[item].profit);
+                    current_solution.total_value -= input.items[item].profit;
                 }
                 current_item = item + 1;
                 current_weight = weight;

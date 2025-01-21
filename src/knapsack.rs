@@ -18,8 +18,8 @@ pub trait KnapsackSolver: Sync {
 
 #[derive(Clone, Copy, Debug)]
 pub struct KnapsackItem {
-    weight: u32,
-    profit: u32,
+    weight: u64,
+    profit: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ pub struct KnapsackInput {
 }
 
 impl KnapsackItem {
-    pub fn new(weight: u32, value: u32) -> Self {
+    pub fn new(weight: u64, value: u64) -> Self {
         KnapsackItem {
             weight,
             profit: value,
@@ -111,10 +111,10 @@ impl KnapsackInput {
                 return Err(KnapsackInputError::InvalidItemSpecification);
             }
 
-            let value: u32 = parts[0]
+            let value: u64 = parts[0]
                 .parse()
                 .map_err(|_| KnapsackInputError::InvalidItemValue)?;
-            let weight: u32 = parts[1]
+            let weight: u64 = parts[1]
                 .parse()
                 .map_err(|_| KnapsackInputError::InvalidItemWeight)?;
 
@@ -132,9 +132,6 @@ impl KnapsackInput {
         if items.iter().any(|item| item.weight == 0) {
             return Err(KnapsackInputError::InvalidItemWeight);
         }
-        // if items.iter().any(|item| item.profit == 0) {
-        //     return Err(KnapsackInputError::InvalidItemValue);
-        // }
         Ok(())
     }
 
@@ -176,7 +173,7 @@ impl KnapsackInput {
         Ok(())
     }
 
-    pub fn max_cost(&self) -> u32 {
+    pub fn max_cost(&self) -> u64 {
         self.items.iter().map(|item| item.weight).max().unwrap()
     }
 
