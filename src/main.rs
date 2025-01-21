@@ -5,7 +5,8 @@ use clap::{Parser, ValueEnum};
 use knapsack::{BktSolver, DpSolver, FptasDpSolver, KnapsackInput, KnapsackMethod, KnapsackSolver};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -53,9 +54,11 @@ lazy_static! {
 }
 
 fn parse_input(args: &CommandArgs) -> KnapsackInput {
-    let input = fs::read_to_string(&args.input_file).unwrap();
+    let file = File::open(&args.input_file).unwrap();
 
-    let mut parsed_input = KnapsackInput::parse_input(&input).unwrap();
+    let reader = BufReader::new(file);
+
+    let mut parsed_input = KnapsackInput::parse_input(reader).unwrap();
     parsed_input.set_granularity(args.granularity).unwrap();
 
     parsed_input

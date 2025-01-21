@@ -2,6 +2,8 @@ pub mod bkt;
 pub mod dp;
 pub mod fptas;
 
+use std::io::BufRead;
+
 use serde::Serialize;
 use strum_macros::{AsRefStr, IntoStaticStr};
 use thiserror::Error;
@@ -60,6 +62,10 @@ pub enum KnapsackInputError {
     InvalidItemValue,
     #[error("Invalid item specification")]
     InvalidItemSpecification,
+    #[error("Failed to read input")]
+    ReadError(#[from] std::io::Error),
+    #[error("Insufficient items provided")]
+    InsufficientItems,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, AsRefStr, IntoStaticStr)]
@@ -70,30 +76,30 @@ pub enum KnapsackMethod {
 }
 
 impl KnapsackInput {
-    /// Parse the input string into a KnapsackInput struct
+    /// Parse the input for the knapsack problem
     ///
-    /// The input string should have the following format:
+    /// The input format is as follows:
     /// n - number of items on the first line
     /// capacity - the capacity of the knapsack on the second line
     /// n lines with two integers each, representing the value and weight of each item
-    pub fn parse_input(input: &str) -> Result<KnapsackInput, KnapsackInputError> {
-        let mut lines = input.lines().map(str::trim).filter(|line| !line.is_empty());
+    pub fn parse_input(input: impl BufRead) -> Result<KnapsackInput, KnapsackInputError> {
+        // Parse only the non-empty lines
+        let mut lines = input
+            .lines()
+            .map_while(Result::ok)
+            .filter_map(|line| (!line.is_empty()).then_some(line));
 
-        let n: usize;
-        {
-            let line = lines.next().ok_or(KnapsackInputError::MissingItemCount)?;
-            n = line
-                .parse()
-                .map_err(|_| KnapsackInputError::InvalidItemCount)?;
-        }
+        let n = lines
+            .next()
+            .ok_or(KnapsackInputError::MissingItemCount)?
+            .parse()
+            .map_err(|_| KnapsackInputError::InvalidItemCount)?;
 
-        let capacity: u32;
-        {
-            let line = lines.next().ok_or(KnapsackInputError::MissingCapacity)?;
-            capacity = line
-                .parse()
-                .map_err(|_| KnapsackInputError::InvalidCapacity)?;
-        }
+        let capacity = lines
+            .next()
+            .ok_or(KnapsackInputError::MissingCapacity)?
+            .parse()
+            .map_err(|_| KnapsackInputError::InvalidCapacity)?;
 
         let mut items = Vec::with_capacity(n);
         for line in lines.take(n) {
@@ -112,6 +118,10 @@ impl KnapsackInput {
             items.push(KnapsackItem::new(weight, value));
         }
 
+        if items.len() < n {
+            return Err(KnapsackInputError::InsufficientItems);
+        }
+
         KnapsackInput::new(items, capacity, 1)
     }
 
@@ -119,9 +129,9 @@ impl KnapsackInput {
         if items.iter().any(|item| item.weight == 0) {
             return Err(KnapsackInputError::InvalidItemWeight);
         }
-        if items.iter().any(|item| item.profit == 0) {
-            return Err(KnapsackInputError::InvalidItemValue);
-        }
+        // if items.iter().any(|item| item.profit == 0) {
+        //     return Err(KnapsackInputError::InvalidItemValue);
+        // }
         Ok(())
     }
 
