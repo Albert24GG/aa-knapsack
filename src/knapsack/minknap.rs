@@ -6,12 +6,6 @@ use super::{
 };
 use bitvec::prelude::*;
 
-#[derive(Debug)]
-struct ItemEfficiency {
-    index: usize,
-    efficiency: f32,
-}
-
 /// This function prepares the items for the minknap algorithm.
 /// It sorts the items by efficiency, calculated as value/weight.
 /// It also filters out items that are too heavy to be included in the knapsack,
@@ -21,11 +15,11 @@ struct ItemEfficiency {
 /// - A vector of ItemEfficiency structs, sorted by efficiency
 /// - A BitVec representing the decision vector, with true values for items that are included (it is used for including the zero weight items)
 /// - The total profit of the included zero weight items
-fn prepare_items(input: &KnapsackInput) -> (Vec<ItemEfficiency>, BitVec, u64) {
+fn prepare_items(input: &KnapsackInput) -> (Vec<usize>, BitVec, u64) {
     let mut decision_vec = bitvec![0; input.items.len()];
     let mut base_profit = 0u64;
 
-    let mut items: Vec<ItemEfficiency> = input
+    let mut items: Vec<usize> = input
         .items
         .iter()
         .enumerate()
@@ -36,17 +30,22 @@ fn prepare_items(input: &KnapsackInput) -> (Vec<ItemEfficiency>, BitVec, u64) {
                 return None;
             }
             if item.weight as u64 <= input.capacity {
-                Some(ItemEfficiency {
-                    index: i,
-                    efficiency: item.profit as f32 / item.weight as f32,
-                })
+                Some(i)
             } else {
                 None
             }
         })
         .collect();
 
-    items.sort_by(|a, b| b.efficiency.partial_cmp(&a.efficiency).unwrap());
+    //items.sort_by(|a, b| b.efficiency.partial_cmp(&a.efficiency).unwrap());
+    // Sort the items by efficiency in descending order, without using floats
+    items.sort_by(|a, b| {
+        let item_a = &input.items[*a];
+        let item_b = &input.items[*b];
+        let eff_a = item_a.profit as u64 * item_b.weight as u64;
+        let eff_b = item_b.profit as u64 * item_a.weight as u64;
+        eff_b.cmp(&eff_a)
+    });
 
     (items, decision_vec, base_profit)
 }
@@ -54,11 +53,9 @@ fn prepare_items(input: &KnapsackInput) -> (Vec<ItemEfficiency>, BitVec, u64) {
 #[derive(Default)]
 struct BreakSolution {
     break_index: usize,
-    // The total profit of the items that have been included (integral only)
+    // The total profit of the items that have been included (integral part only)
     total_profit: u64,
     total_weight: u64,
-    // The total profit of the items that have been included (including fractional part of the last item = break_index)
-    total_linear_profit: u64,
 }
 
 impl BreakSolution {
@@ -72,7 +69,7 @@ impl BreakSolution {
     /// The item_efficiencies and decision_vec should be the same as the ones returned by prepare_items.
     fn new(
         input: &KnapsackInput,
-        item_efficiencies: &[ItemEfficiency],
+        efficiency_ordering: &[usize],
         decision_vec: &mut BitSlice,
     ) -> Self {
         let mut total_profit = 0u64;
@@ -81,24 +78,17 @@ impl BreakSolution {
         let mut i = 0usize;
         let mut result = BreakSolution::default();
 
-        while i < item_efficiencies.len() {
-            let item = &input.items[item_efficiencies[i].index];
+        while i < efficiency_ordering.len() {
+            let item = &input.items[efficiency_ordering[i]];
             if total_weight + item.weight as u64 <= input.capacity {
                 total_weight += item.weight as u64;
                 total_profit += item.profit as u64;
-                decision_vec.set(item_efficiencies[i].index, true);
+                decision_vec.set(efficiency_ordering[i], true);
             } else {
-                let remaining_weight = input.capacity - total_weight;
-                let break_item_efficiency = item_efficiencies[i].efficiency;
-                let total_linear_profit = (total_profit as f32
-                    + break_item_efficiency * remaining_weight as f32)
-                    .ceil() as u64;
-
                 result = BreakSolution {
                     break_index: i,
                     total_profit,
                     total_weight,
-                    total_linear_profit,
                 };
                 break;
             }
@@ -108,12 +98,11 @@ impl BreakSolution {
 
         // Handle the case when all items can be included
         // In this case, there is no break item
-        if i == item_efficiencies.len() {
+        if i == efficiency_ordering.len() {
             result = BreakSolution {
                 break_index: i,
                 total_profit,
                 total_weight,
-                total_linear_profit: total_profit,
             };
         }
 
@@ -126,8 +115,8 @@ struct MinKnapInstance<'a> {
     best_sol_weight: u64,
     /// A bit vector representing the items included in the best solution
     decision_vec: BitVec,
-    /// The efficiencies of the considered items sorted in decreasing order (excluding zero weight items and items that are too heavy)
-    item_efficiencies: Vec<ItemEfficiency>,
+    /// A vector containing the  indices of the items sorted by efficiency
+    efficiency_ordering: Vec<usize>,
     /// The total profit of the implicitly included zero weight items
     base_profit: u64,
     /// The break solution
@@ -142,7 +131,7 @@ struct MinKnapInstance<'a> {
     /// The max weight a state can reach to still be feasible (detailed in the paper & book)
     max_allowed_weight: u64,
     /// The order in which the items have been considered/traversed
-    /// It contains the indices of the items in the "item_efficiencies" vector
+    /// It contains the indices of the items in the "efficiency_ordering" vector
     /// It is used for building the decision vector
     traversal_order: Vec<usize>,
     /// The index of the best solution item in the traversal order
@@ -162,9 +151,9 @@ struct MinKnapState {
 
 impl<'a> MinKnapInstance<'a> {
     fn new(input: &'a KnapsackInput) -> Self {
-        let (item_efficiencies, mut decision_vec, base_profit) = prepare_items(input);
+        let (efficiency_ordering, mut decision_vec, base_profit) = prepare_items(input);
         let break_solution =
-            BreakSolution::new(input, &item_efficiencies, decision_vec.as_mut_bitslice());
+            BreakSolution::new(input, &efficiency_ordering, decision_vec.as_mut_bitslice());
         let max_allowed_weight = input.capacity + break_solution.total_weight;
 
         // Initially, our best solution is the break solution
@@ -188,7 +177,7 @@ impl<'a> MinKnapInstance<'a> {
         MinKnapInstance {
             best_sol_weight,
             decision_vec,
-            item_efficiencies,
+            efficiency_ordering,
             base_profit,
             break_solution,
             problem_instance: input,
@@ -205,7 +194,7 @@ impl<'a> MinKnapInstance<'a> {
 
     /// Returns the item at the given efficiency order index
     fn get_item(&self, efficiency_order_idx: usize) -> KnapsackItem {
-        self.problem_instance.items[self.item_efficiencies[efficiency_order_idx].index]
+        self.problem_instance.items[self.efficiency_ordering[efficiency_order_idx]]
     }
 
     /// Returns the upper bound of the core problem with the given current bounds [s, t] and state
@@ -217,10 +206,16 @@ impl<'a> MinKnapInstance<'a> {
                 current_state.profit
             } else {
                 // Try linearly expanding the core
-                let weight_diff = self.problem_instance.capacity - current_state.weight;
-                let next_item_efficiency = self.item_efficiencies[t + 1].efficiency;
+                // Use the integer arithmetic to avoid floating point errors
+                // (weight_diff * profit) / weight
 
-                current_state.profit + (weight_diff as f32 * next_item_efficiency).ceil() as u64
+                let weight_diff = self.problem_instance.capacity - current_state.weight;
+                let next_item = self.get_item(t + 1);
+
+                // current_state.profit
+                //     + (weight_diff * next_item.profit as u64).div_ceil(next_item.weight as u64)
+                current_state.profit
+                    + (weight_diff * next_item.profit as u64) / next_item.weight as u64
             }
         } else {
             // Over capacity, we can try reducing the core by excluding the next item after s
@@ -229,13 +224,15 @@ impl<'a> MinKnapInstance<'a> {
                 // If we are already at the first item, we can't reduce the core anymore
                 current_state.profit
             } else {
-                // Try linearly reducing the core
+                // Try linearly reducing the core, using the same integer arithmetic as above
                 let weight_diff = current_state.weight - self.problem_instance.capacity;
-                let prev_item_efficiency = self.item_efficiencies[s - 1].efficiency;
-
-                current_state
-                    .profit
-                    .saturating_sub((weight_diff as f32 * prev_item_efficiency).ceil() as u64)
+                let prev_item = self.get_item(s - 1);
+                // current_state.profit.saturating_sub(
+                //     (weight_diff * prev_item.profit as u64).div_ceil(prev_item.weight as u64),
+                // )
+                current_state.profit.saturating_sub(
+                    (weight_diff * prev_item.profit as u64) / prev_item.weight as u64,
+                )
             }
         }
     }
@@ -553,7 +550,7 @@ impl<'a> MinKnapInstance<'a> {
                 }
 
                 let effiency_order_idx = self.traversal_order[decision_pos - i];
-                let actual_item_idx = self.item_efficiencies[effiency_order_idx].index;
+                let actual_item_idx = self.efficiency_ordering[effiency_order_idx];
 
                 if effiency_order_idx < b {
                     // The item was removed
