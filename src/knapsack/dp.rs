@@ -14,17 +14,17 @@ impl DpSolver {
 
         dp_table.row_mut(0).fill(u64::MAX - max_cost as u64);
         dp_table[(0, 0)] = 0;
-        dp_table[(0, items[0].value as usize)] = items[0].weight.into();
+        dp_table[(0, items[0].profit as usize)] = items[0].weight.into();
 
         for i in 1..n {
             // Copy the previous row elements that have a profit less than the current item's value
-            for profit in 1usize..items[i].value as usize {
+            for profit in 1usize..items[i].profit as usize {
                 dp_table[(i, profit)] = dp_table[(i - 1, profit)];
             }
             // Try to improve the weight for a given profit using the current item
-            for profit in items[i].value as usize..=max_profit as usize {
+            for profit in items[i].profit as usize..=max_profit as usize {
                 dp_table[(i, profit)] = dp_table[(i - 1, profit)].min(
-                    dp_table[(i - 1, profit - items[i].value as usize)] + items[i].weight as u64,
+                    dp_table[(i - 1, profit - items[i].profit as usize)] + items[i].weight as u64,
                 );
             }
         }
@@ -39,7 +39,7 @@ impl DpSolver {
         for i in (1..input.items.len()).rev() {
             if dp_table[(i, profit as usize)] != dp_table[(i - 1, profit as usize)] {
                 path.push(i);
-                profit -= u64::from(input.items[i].value);
+                profit -= u64::from(input.items[i].profit);
             }
             if profit == 0 {
                 break;

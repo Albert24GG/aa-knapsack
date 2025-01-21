@@ -15,7 +15,7 @@ pub trait KnapsackSolver: Sync {
 #[derive(Clone, Copy, Debug)]
 pub struct KnapsackItem {
     weight: u32,
-    value: u32,
+    profit: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -27,7 +27,10 @@ pub struct KnapsackInput {
 
 impl KnapsackItem {
     pub fn new(weight: u32, value: u32) -> Self {
-        KnapsackItem { weight, value }
+        KnapsackItem {
+            weight,
+            profit: value,
+        }
     }
 }
 
@@ -116,7 +119,7 @@ impl KnapsackInput {
         if items.iter().any(|item| item.weight == 0) {
             return Err(KnapsackInputError::InvalidItemWeight);
         }
-        if items.iter().any(|item| item.value == 0) {
+        if items.iter().any(|item| item.profit == 0) {
             return Err(KnapsackInputError::InvalidItemValue);
         }
         Ok(())
@@ -165,6 +168,6 @@ impl KnapsackInput {
     }
 
     pub fn max_item_profit(&self) -> u64 {
-        self.items.iter().map(|item| u64::from(item.value)).sum()
+        self.items.iter().map(|item| u64::from(item.profit)).sum()
     }
 }
