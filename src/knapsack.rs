@@ -128,13 +128,6 @@ impl KnapsackInput {
         KnapsackInput::new(items, capacity, 1)
     }
 
-    fn validate_items(items: &[KnapsackItem]) -> Result<(), KnapsackInputError> {
-        if items.iter().any(|item| item.weight == 0) {
-            return Err(KnapsackInputError::InvalidItemWeight);
-        }
-        Ok(())
-    }
-
     fn validate_capacity(capacity: u64) -> Result<(), KnapsackInputError> {
         if capacity == 0 {
             return Err(KnapsackInputError::InvalidCapacity);
@@ -154,7 +147,6 @@ impl KnapsackInput {
         capacity: u64,
         granularity: u32,
     ) -> Result<Self, KnapsackInputError> {
-        Self::validate_items(&items)?;
         Self::validate_capacity(capacity)?;
         Self::validate_granularity(granularity)?;
 
